@@ -50,6 +50,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let sliceAmount = charadex.page.index.designs.amount || 6;
     arr.splice(sliceAmount, arr.length);
 
+    console.log(arr.length);
+
   });
 
 
