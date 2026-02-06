@@ -15,7 +15,7 @@ let charadex = {};
 /* Any preview links will still show Charadex's information
 /* ==================================================================== */
 charadex.site = {
-  title: "UnaChara",
+  title: "Una Chara",
   url: "https://lunashere.github.io/unacharatest/",
   description: `A tool for organizing small ARPGs and species.`
 }
