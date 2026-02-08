@@ -25,8 +25,7 @@ function getTheme() {
   const theme = localStorage.getItem("theme");
 
   if(theme === null) {
-    console.log("Setting light theme as no theme is in storage.");
-    return "light";
+    return "dark";
   } else {
     return theme;
   }
