@@ -95,3 +95,53 @@ document.addEventListener("click", (e) => {
 
   setTheme(newTheme);
 });
+
+/* ==================================================================== */
+/* Automatically make Toyhou.se links clickable
+======================================================================= */
+
+(function () {
+  const toyhouseRegex = /https?:\/\/toyhou\.se\/[^\s<]+/g;
+
+  function linkifyTextNode(textNode) {
+    const text = textNode.nodeValue;
+    if (!toyhouseRegex.test(text)) return;
+
+    const span = document.createElement("span");
+    span.innerHTML = text.replace(toyhouseRegex, url =>
+      `<a href="${url}" target="_blank">${url}</a>`
+    );
+
+    textNode.parentNode.replaceChild(span, textNode);
+  }
+
+  function scanNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      // Skip text already inside links
+      if (node.parentElement?.closest("a")) return;
+      linkifyTextNode(node);
+      return;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      // Skip script/style tags
+      if (["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) return;
+      node.childNodes.forEach(scanNode);
+    }
+  }
+
+  // Initial scan (for first load)
+  scanNode(document.body);
+
+  // Watch for Charadex DOM injections
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(scanNode);
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+})();
