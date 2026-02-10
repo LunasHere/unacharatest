@@ -29,9 +29,81 @@ charadex.buildList = (selector = 'charadex') => {
 
     // Create list classes
     listConfig.valueNames =  charadex.tools.createListClasses(galleryArray);
+    
+    // Create the List instance
+    const galleryId = gallerySelector || `${selector}-gallery`;
+    const listInstance = new List(galleryId, {...listConfig, ...additionalListConfigs}, galleryArray);
 
-    // Return the list
-    return new List(gallerySelector || `${selector}-gallery`, {...listConfig, ...additionalListConfigs}, galleryArray);
+    // Helper to detect CW in an entry (checks common tag fields, arrays, and comma-separated strings)
+    const isCW = (entry) => {
+      if (!entry) return false;
+      if (entry.cw === true) return true;
+      const scrub = charadex.tools.scrub;
+      for (let k in entry) {
+        const v = entry[k];
+        if (Array.isArray(v)) {
+          if (v.map(i => scrub(i)).includes('cw')) return true;
+        } else if (typeof v === 'string') {
+          if (scrub(v) === 'cw') return true;
+          if (v.split(',').map(i => scrub(i)).includes('cw')) return true;
+        }
+      }
+      return false;
+    };
+
+    // Apply a blur to images for CW entries after rendering (uses listInstance.items)
+    try {
+      const applyBlurToItems = () => {
+        listInstance.items.forEach((item, i) => {
+          try {
+            const values = item.values();
+            if (isCW(values)) {
+              const imgs = $(item.el).find('img');
+              if (imgs && imgs.length) {
+                imgs.addClass('cw-blur');
+              } else {
+                // Fallback 1: find image by exact src inside the gallery container
+                try {
+                  const container = $(`#${galleryId}`);
+                  const imgsBySrc = container.find('img').filter(function() { return $(this).attr('src') == values.image; });
+                  if (imgsBySrc.length) {
+                    imgsBySrc.addClass('cw-blur');
+                    return;
+                  }
+                } catch(e) { console.error(e); }
+
+                // Fallback 2: find item by profileid text and then its image
+                try {
+                  const container = $(`#${galleryId}`);
+                  const matchedItem = container.find(`.${listConfig.item}`).filter(function() {
+                    return $(this).find('.profileid').text().trim() === String(values.profileid || values.profile || '');
+                  }).first();
+                  if (matchedItem.length) {
+                    const imgs2 = matchedItem.find('img');
+                    if (imgs2.length) {
+                      imgs2.addClass('cw-blur');
+                      return;
+                    }
+                  }
+                } catch(e) { console.error(e); }
+
+              }
+            }
+          } catch (err) {
+            console.error('[charadex] initializeGallery: error checking item', err);
+          }
+        });
+      };
+
+      // Run once for the initial render and on updates (pagination/filters/etc.)
+      setTimeout(applyBlurToItems, 250);
+      listInstance.on('updated', applyBlurToItems);
+    } catch (err) {
+      console.error(err);
+    }
+
+    // Return the list instance
+    return listInstance;
 
   };
 
@@ -65,8 +137,64 @@ charadex.buildList = (selector = 'charadex') => {
     listConfig.valueNames =  charadex.tools.createListClasses(profileArray);
     listConfig.item = `${selector}-profile`;
 
-    // Return the list
-    return new List(profileSelector || `${selector}-gallery`, listConfig, profileArray);
+    const galleryId = profileSelector || `${selector}-gallery`;
+    const listInstance = new List(galleryId, listConfig, profileArray);
+
+    // Detect CW for profile and blur its images
+    try {
+      const entry = profileArray[0];
+      const scrub = charadex.tools.scrub;
+      const isCW = (e) => {
+        if (!e) return false;
+        if (e.cw === true) return true;
+        for (let k in e) {
+          const v = e[k];
+          if (Array.isArray(v)) {
+            if (v.map(i => scrub(i)).includes('cw')) return true;
+          } else if (typeof v === 'string') {
+            if (scrub(v) === 'cw') return true;
+            if (v.split(',').map(i => scrub(i)).includes('cw')) return true;
+          }
+        }
+        return false;
+      };
+
+      if (isCW(entry)) {
+        const applyBlurToProfile = () => {
+          listInstance.items.forEach((item) => {
+            try {
+              const values = item.values();
+              if (values && (values.profileid === entry.profileid || values.profileid === String(entry.profileid))) {
+                const imgs = $(item.el).find('img');
+                if (imgs && imgs.length) {
+                  imgs.addClass('cw-blur');
+                  $(item.el).addClass('cw-entry');
+                } else {
+                  // Fallback: try to find by image src within gallery
+                  try {
+                    const container = $(`#${galleryId}`);
+                    const imgsBySrc = container.find('img').filter(function() { return $(this).attr('src') == entry.image; });
+                    if (imgsBySrc.length) {
+                      imgsBySrc.addClass('cw-blur');
+                      imgsBySrc.closest(`.${listConfig.item}`).addClass('cw-entry');
+                    }
+                  } catch(e) { console.error(e); }
+
+                }
+              }
+            } catch (err) {
+              console.error('[charadex] initializeProfile: error applying blur', err);
+            }
+          });
+        };
+        setTimeout(applyBlurToProfile, 250);
+        listInstance.on('updated', applyBlurToProfile);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    return listInstance;
 
   };
 
